@@ -46,6 +46,8 @@ RUN echo  "channels:" > ~/.condarc && \
 # 复制后续所需环境文件
 COPY code /app/opennfsw2-api/code/
 
+COPY model /app/opennfsw2-api/model/
+
 WORKDIR /app/opennfsw2-api/code/
 # 给予初始化脚本执行权限
 RUN chmod +x /app/opennfsw2-api/code/entrypoint.sh
