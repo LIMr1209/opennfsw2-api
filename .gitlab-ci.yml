@@ -1,0 +1,24 @@
+stages:
+  - 构建基础镜像
+before_script:
+  - echo -n "$HARBOR_PASSWORD"| sudo docker login -u $HARBOR_USERNAME $HARBOR_HOST --password-stdin
+
+构建基础镜像:
+  stage: 构建基础镜像
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}-lfs
+    paths:
+      - .git/lfs
+  script:
+    - |
+      # 检查这是不是CI/CD的首次构建,如果是则进行lfs文件拉取
+      if [ "$CI_PIPELINE_IID" = "1" ]; then
+        echo "This seems to be the first build. Pulling all LFS objects..."
+        git lfs pull
+      elif [ -n "$(git diff --name-only $CI_COMMIT_BEFORE_SHA...$CI_COMMIT_SHA | grep -e '\.lfs$')" ]; then
+        echo "LFS files have changed, pulling LFS objects..."
+        git lfs pull
+      else
+        echo "No changes in LFS files or not the first build, skipping LFS pull."
+      fi
+    - sudo docker buildx build --progress=plain --tag $HARBOR_HOST/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/${CI_COMMIT_REF_NAME}:latest . --push

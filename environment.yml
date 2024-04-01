@@ -1,0 +1,9 @@
+name: opennfsw2-api
+dependencies:
+  - python=3.10
+  - pip=24.0
+  - pip:
+    - opennsfw2
+    - tensorflow-cpu~=2.16.1
+    - fastapi
+    - uvicorn
