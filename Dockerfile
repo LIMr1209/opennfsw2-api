@@ -33,7 +33,6 @@ RUN echo  "channels:" > ~/.condarc && \
     conda env create -f environment.yml --verbose && \
     conda clean -afy
 
-COPY requirement.txt /app/opennfsw2-api/requirement.txt
 # 复制后续所需环境文件
 COPY code /app/opennfsw2-api/code/
 
