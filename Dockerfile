@@ -5,6 +5,16 @@ FROM harbor.cheerytech.ai/components/ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Asia/Shanghai
 
+# 替换Ubuntu的源为清华大学源，以加速包的下载速度，并安装必要的包
+RUN echo "deb http://nexus.cheerytech.ai/repository/tsinghua-ubuntu/ jammy main restricted universe multiverse" > /etc/apt/sources.list && \
+    echo "deb http://nexus.cheerytech.ai/repository/tsinghua-ubuntu/ jammy-updates main restricted universe multiverse" >> /etc/apt/sources.list && \
+    echo "deb http://nexus.cheerytech.ai/repository/tsinghua-ubuntu/ jammy-backports main restricted universe multiverse" >> /etc/apt/sources.list && \
+    echo "deb http://nexus.cheerytech.ai/repository/tsinghua-ubuntu/ jammy-security main restricted universe multiverse" >> /etc/apt/sources.list && \
+    apt-get update && apt-get upgrade -y && \
+    apt-get install -y wget \
+    rm -rf /var/lib/apt/lists/*
+
+
 # 下载并安装Anaconda
 RUN wget https://minio.cheerytech.ai/public/Miniconda3-latest-Linux-x86_64.sh -O ~/anaconda.sh && \
     /bin/bash ~/anaconda.sh -b -p /opt/conda && \
