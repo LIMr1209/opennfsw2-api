@@ -11,7 +11,7 @@ RUN echo "deb http://nexus.cheerytech.ai/repository/tsinghua-ubuntu/ jammy main 
     echo "deb http://nexus.cheerytech.ai/repository/tsinghua-ubuntu/ jammy-backports main restricted universe multiverse" >> /etc/apt/sources.list && \
     echo "deb http://nexus.cheerytech.ai/repository/tsinghua-ubuntu/ jammy-security main restricted universe multiverse" >> /etc/apt/sources.list && \
     apt-get update && apt-get upgrade -y && \
-    apt-get install -y wget \
+    apt-get install -y wget && \
     rm -rf /var/lib/apt/lists/*
 
 
