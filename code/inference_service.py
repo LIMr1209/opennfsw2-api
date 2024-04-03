@@ -52,8 +52,8 @@ router = APIRouter()
 class InterData(BaseModel):
     data_bs64: str = Field(description="视频或者图片bs64")
     suffix: str = Field(description="文件后缀")
-    kind: int = Field(1, le=2, ge=1, description="1 视频 2 图片")
-    gzip: bool = Field(True, description="gzip压缩")
+    kind: int = Field(1, le=2, ge=1, description="1 视频 2 图片 3 图片压缩包")
+    gzip: bool = Field(True, description="gzip是否压缩")
 
 
 @router.post("/infer")
