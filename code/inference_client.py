@@ -16,7 +16,8 @@ data = {
 }
 
 try:
-    response = requests.post("http://127.0.0.1:13000/infer", json=data)
+    response = requests.post("http://127.0.0.1:8200/ai/nsfw/check", json=data)
+    print(response.json())
     print("成功")
     sys.exit(0)
 except Exception as e:

@@ -64,9 +64,10 @@ def infer(
     d = data.model_dump()
     try:
         u_data = base64.b64decode(data.data_bs64)
-        if gzip:
+        if data.gzip:
             u_data = gzip.decompress(u_data)
         d.pop("data_bs64")
+        d.pop("gzip")
         d["data"] = u_data
     except Exception as e:
         return server_response(code=400, message="Please provide the correct base64 code for the video!")
