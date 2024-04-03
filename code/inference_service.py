@@ -36,6 +36,7 @@ def server_response(*, code=200, data: Union[list, dict, str] = None, message="S
 
 app = FastAPI()
 
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """
@@ -49,9 +50,11 @@ router = APIRouter()
 
 
 class InterData(BaseModel):
-    data_bs64: str = Field(description="视频或者图片bs64 gzip")
+    data_bs64: str = Field(description="视频或者图片bs64")
     suffix: str = Field(description="文件后缀")
     kind: int = Field(1, le=2, ge=1, description="1 视频 2 图片")
+    gzip: bool = Field(True, description="gzip压缩")
+
 
 @router.post("/infer")
 def infer(
@@ -61,7 +64,8 @@ def infer(
     d = data.model_dump()
     try:
         u_data = base64.b64decode(data.data_bs64)
-        u_data = gzip.decompress(u_data)
+        if gzip:
+            u_data = gzip.decompress(u_data)
         d.pop("data_bs64")
         d["data"] = u_data
     except Exception as e:
