@@ -1,10 +1,18 @@
+import asyncio
 import base64
+import ctypes
 import gzip
 import os
-from typing import Any, Union
+import threading
+from contextlib import asynccontextmanager
+from functools import wraps
+from typing import Any, Union, Callable, Awaitable
 
 import uvicorn
-from fastapi import FastAPI, APIRouter, Body, Request
+from asyncer import asyncify
+from anyio.lowlevel import RunVar
+from anyio import CapacityLimiter
+from fastapi import FastAPI, APIRouter, Body, Request, HTTPException
 from pydantic import BaseModel, Field
 from fastapi.responses import Response
 from starlette import status
@@ -34,7 +42,84 @@ def server_response(*, code=200, data: Union[list, dict, str] = None, message="S
     )
 
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("start")
+    RunVar("_default_thread_limiter").set(CapacityLimiter(5000))
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
+
+
+# lock = threading.Lock()
+
+
+async def disconnect_poller(request: Request, result: Any):
+    """
+    Poll for a disconnect.
+    If the request disconnects, stop polling and return.
+    """
+    try:
+        while not await request.is_disconnected():
+            await asyncio.sleep(0.01)
+
+        print("Request disconnected")
+
+        return result
+    except asyncio.CancelledError:
+        pass
+        # print("Stopping polling loop")
+
+
+def cancel_on_disconnect(handler: Callable[[Request], Awaitable[Any]]):
+    """
+    Decorator that will check if the client disconnects,
+    and cancel the task if required.
+    """
+
+    @wraps(handler)
+    async def cancel_on_disconnect_decorator(request: Request, *args, **kwargs):
+        sentinel = object()
+
+        # Create two tasks, one to poll the request and check if the
+        # client disconnected, and another which is the request handler
+        poller_task = asyncio.ensure_future(disconnect_poller(request, sentinel))
+        handler_task = asyncio.ensure_future(handler(request, *args, **kwargs))
+
+        done, pending = await asyncio.wait(
+            [poller_task, handler_task], return_when=asyncio.FIRST_COMPLETED
+        )
+
+        # Cancel any outstanding tasks
+        for t in pending:
+            t.cancel()
+
+            try:
+                await t
+            except asyncio.CancelledError:
+                print(f"{t} was cancelled")
+            except Exception as exc:
+                print(f"{t} raised {exc} when being cancelled")
+
+        # Return the result if the handler finished first
+        if handler_task in done:
+            return await handler_task
+        if hasattr(request, "thread_id"):
+            ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(request.thread_id),
+                                                       ctypes.py_object(SystemExit))
+        # Otherwise, raise an exception
+        # This is not exactly needed, but it will prevent
+        # validation errors if your request handler is supposed
+        # to return something.
+        print("Raising an HTTP error because I was disconnected!!")
+        # lock.acquire()
+        global inference_status
+        inference_status = True
+        # lock.release()
+        raise HTTPException(503)
+
+    return cancel_on_disconnect_decorator
 
 
 @app.exception_handler(Exception)
@@ -57,7 +142,9 @@ class InterData(BaseModel):
 
 
 @router.post("/infer")
-def infer(
+@cancel_on_disconnect
+async def infer(
+        request: Request,
         data: InterData
 ):
     global inference_status
@@ -71,11 +158,13 @@ def infer(
         d["data"] = u_data
     except Exception as e:
         return server_response(code=400, message="Please provide the correct base64 code for the video!")
+    # lock.acquire()
     inference_status = False
-    code, res = infer_service(
-        input_dir=input_dir, **d
-    )
+    # lock.release()
+    code, res = await asyncify(infer_service, cancellable=True)(request=request, input_dir=input_dir, **d)
+    # lock.acquire()
     inference_status = True
+    # lock.release()
     if code == 200:
         return server_response(code=200, data=res)
     else:

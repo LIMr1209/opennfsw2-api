@@ -1,5 +1,7 @@
 import os
 import pathlib
+import threading
+import time
 import uuid
 import shutil
 import tarfile
@@ -28,11 +30,13 @@ def load_model():
 
 
 def infer_service(
+        request,
         input_dir,
         data,
         suffix,
         kind,
 ):
+    request.thread_id = threading.get_ident()
     # 处理上传视频文件
     task_path = pathlib.Path(os.path.join(input_dir, str(uuid.uuid4())))
     if not task_path.exists():
